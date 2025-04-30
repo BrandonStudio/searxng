@@ -621,8 +621,12 @@ engines:
 
   - name: chinaso news
     chinaso_category: news
+    chinaso_news_source: all # One of all, CENTRAL, LOCAL, BUSINESS, EPAPER
     engine: chinaso
     shortcut: chinaso
+    categories: 
+      - general
+      - news
     disabled: true
 
   - name: chinaso images
