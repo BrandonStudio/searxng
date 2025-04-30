@@ -31,13 +31,13 @@ chinaso_category = 'news'
 - ``videos``: search for videos
 - ``images``: search for images
 """
-chinaso_news_source = None # type: Optional[Literal['CENTRAL', 'LOCAL', 'BUSINESS', 'EPAPER']]
+chinaso_news_source = 'all' # type: Literal['CENTRAL', 'LOCAL', 'BUSINESS', 'EPAPER', 'all']
 """ChinaSo supports different sources for news search.
 - ``CENTRAL``: Central Publication
 - ``LOCAL``: Local Publication
 - ``BUSINESS``: Business Publication
 - ``EPAPER``: E-Paper
-- ``None``: All sources
+- ``all``: All sources
 """
 
 time_range_dict = {'day': '24h', 'week': '1w', 'month': '1m', 'year': '1y'}
@@ -48,7 +48,7 @@ base_url = "https://www.chinaso.com"
 def init(_):
     if chinaso_category not in ('news', 'videos', 'images'):
         raise SearxEngineAPIException(f"Unsupported category: {chinaso_category}")
-    if chinaso_category == 'news' and chinaso_news_source not in (None, 'CENTRAL', 'LOCAL', 'BUSINESS', 'EPAPER'):
+    if chinaso_category == 'news' and chinaso_news_source not in ('all', 'CENTRAL', 'LOCAL', 'BUSINESS', 'EPAPER'):
         raise SearxEngineAPIException(f"Unsupported news source: {chinaso_news_source}")
 
 
@@ -70,7 +70,7 @@ def request(query, params):
             'params': {'start_index': (params["pageno"] - 1) * results_per_page, 'rn': results_per_page},
         },
     }
-    if chinaso_news_source:
+    if chinaso_news_source != 'all':
         if chinaso_news_source == 'EPAPER':
             category_config['news']['params']["type"] = 'EPAPER'
         else:
@@ -163,4 +163,5 @@ def parse_videos(data):
 
 
 def parse_url(url): # type: (str) -> str
+    return url
     return get_redirect_url(url, timeout=1, allow_redirects=False, fallback_to_get=False)

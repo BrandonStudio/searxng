@@ -623,7 +623,9 @@ engines:
     chinaso_category: news
     engine: chinaso
     shortcut: chinaso
-    disabled: true
+    categories: 
+      - general
+    # disabled: true
 
   - name: chinaso images
     chinaso_category: images
