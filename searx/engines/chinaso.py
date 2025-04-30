@@ -5,7 +5,11 @@ from urllib.parse import urlencode
 from datetime import datetime
 
 from searx.exceptions import SearxEngineAPIException
-from searx.utils import html_to_text
+from searx.utils import get_redirect_url, html_to_text
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Literal, Optional
 
 about = {
     "website": "https://www.chinaso.com/",
@@ -27,6 +31,14 @@ chinaso_category = 'news'
 - ``videos``: search for videos
 - ``images``: search for images
 """
+chinaso_news_source = None # type: Optional[Literal['CENTRAL', 'LOCAL', 'BUSINESS', 'EPAPER']]
+"""ChinaSo supports different sources for news search.
+- ``CENTRAL``: Central Publication
+- ``LOCAL``: Local Publication
+- ``BUSINESS``: Business Publication
+- ``EPAPER``: E-Paper
+- ``None``: All sources
+"""
 
 time_range_dict = {'day': '24h', 'week': '1w', 'month': '1m', 'year': '1y'}
 
@@ -36,6 +48,8 @@ base_url = "https://www.chinaso.com"
 def init(_):
     if chinaso_category not in ('news', 'videos', 'images'):
         raise SearxEngineAPIException(f"Unsupported category: {chinaso_category}")
+    if chinaso_category == 'news' and chinaso_news_source not in (None, 'CENTRAL', 'LOCAL', 'BUSINESS', 'EPAPER'):
+        raise SearxEngineAPIException(f"Unsupported news source: {chinaso_news_source}")
 
 
 def request(query, params):
@@ -56,6 +70,11 @@ def request(query, params):
             'params': {'start_index': (params["pageno"] - 1) * results_per_page, 'rn': results_per_page},
         },
     }
+    if chinaso_news_source:
+        if chinaso_news_source == 'EPAPER':
+            category_config['news']['params']["type"] = 'EPAPER'
+        else:
+            category_config['news']['params']["cate"] = chinaso_news_source
 
     query_params.update(category_config[chinaso_category]['params'])
 
@@ -91,7 +110,7 @@ def parse_news(data):
         results.append(
             {
                 'title': html_to_text(entry["title"]),
-                'url': entry["url"],
+                'url': parse_url(entry["url"]),
                 'content': html_to_text(entry["snippet"]),
                 'publishedDate': published_date,
             }
@@ -107,7 +126,7 @@ def parse_images(data):
     for entry in data["data"]["arrRes"]:
         results.append(
             {
-                'url': entry["web_url"],
+                'url': parse_url(entry["web_url"]),
                 'title': html_to_text(entry["title"]),
                 'content': html_to_text(entry["ImageInfo"]),
                 'template': 'images.html',
@@ -133,7 +152,7 @@ def parse_videos(data):
 
         results.append(
             {
-                'url': entry["url"],
+                'url': parse_url(entry["url"]),
                 'title': html_to_text(entry["raw_title"]),
                 'template': 'videos.html',
                 'publishedDate': published_date,
@@ -141,3 +160,7 @@ def parse_videos(data):
             }
         )
     return results
+
+
+def parse_url(url): # type: (str) -> str
+    return get_redirect_url(url, timeout=1, allow_redirects=False, fallback_to_get=False)

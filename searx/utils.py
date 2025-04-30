@@ -8,6 +8,7 @@ import importlib
 import importlib.util
 import json
 import types
+import requests
 
 from typing import Optional, Union, Any, Set, List, Dict, MutableMapping, Tuple, Callable
 from numbers import Number
@@ -854,3 +855,30 @@ def parse_duration_string(duration_str: str) -> timedelta | None:
         pass
 
     return None
+
+
+def get_redirect_url(url: str, timeout: float = 2.0, allow_redirects: bool = False, fallback_to_get: bool = True) -> str:
+    """Get the redirect URL (HTTP 302) from a given URL.
+
+    Args:
+        * url (str): The URL to check for redirection
+        * timeout (float, optional): Timeout in seconds for the HTTP request. Defaults to 2.0.
+        * allow_redirects (bool, optional): Whether to allow redirects. Defaults to False.
+        * fallback_to_get (bool, optional): Whether to fallback to GET request if HEAD fails. Defaults to True.
+
+    Returns:
+        * str: The redirect URL if found, or the original URL if no redirection occurs, or an error occurs.
+    """
+    try:
+        headers = {'User-Agent': searx_useragent()}
+        resp = requests.head(url, allow_redirects=allow_redirects, timeout=timeout, headers=headers)
+        if resp.status_code in (301, 302, 303, 307, 308) and 'Location' in resp.headers:
+            return resp.headers['Location']
+        if fallback_to_get:
+            resp = requests.get(url, allow_redirects=allow_redirects, timeout=timeout, headers=headers)
+            if resp.status_code in (301, 302, 303, 307, 308) and 'Location' in resp.headers:
+                return resp.headers['Location']
+        return url
+    except (requests.RequestException, ConnectionError, OSError) as e:
+        logger.warning("Error getting redirect for %s: %s", url, e)
+        return url
