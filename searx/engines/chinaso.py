@@ -6,6 +6,7 @@ from datetime import datetime
 
 from searx.exceptions import SearxEngineAPIException
 from searx.utils import html_to_text
+from searx.network import head
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -110,7 +111,7 @@ def parse_news(data):
         results.append(
             {
                 'title': html_to_text(entry["title"]),
-                'url': entry["url"],
+                'url': parse_url(entry["url"]),
                 'content': html_to_text(entry["snippet"]),
                 'publishedDate': published_date,
             }
@@ -126,7 +127,7 @@ def parse_images(data):
     for entry in data["data"]["arrRes"]:
         results.append(
             {
-                'url': entry["web_url"],
+                'url': parse_url(entry["web_url"]),
                 'title': html_to_text(entry["title"]),
                 'content': html_to_text(entry["ImageInfo"]),
                 'template': 'images.html',
@@ -152,7 +153,7 @@ def parse_videos(data):
 
         results.append(
             {
-                'url': entry["url"],
+                'url': parse_url(entry["url"]),
                 'title': html_to_text(entry["raw_title"]),
                 'template': 'videos.html',
                 'publishedDate': published_date,
@@ -160,3 +161,19 @@ def parse_videos(data):
             }
         )
     return results
+
+
+def parse_url(url): # type: (str) -> str
+    """Get the real URL by following a 302 redirect once"""
+    try:
+        response = head(url, allow_redirects=False, timeout=5.0)
+        # ChinaSo accepts HEAD requests, no need to fall back to GET.
+        # However, to make this function general (i.e. useful for other engines),
+        # it may need to accept other parameters, such as timeout, fallback, etc.
+
+        if response.status_code == 302 and response.headers.get('Location'):
+            return response.headers['Location']
+    except Exception:
+        # Ignore any exceptions (network errors, timeouts, etc.) and return the original URL
+        pass
+    return url
